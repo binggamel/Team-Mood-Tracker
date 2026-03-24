@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { Entry, MoodType } from "../types";
 
@@ -8,12 +8,24 @@ type Props = {
   entries: Entry[];
   moods: MoodType[];
   meId: number;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
   onSelectDate: (d: string) => void;
   onSaved: () => void;
   onMoodAdded: () => void;
 };
 
-export default function CalendarView({ currentMonth, entries, moods, meId, onSelectDate, onSaved, onMoodAdded }: Props) {
+export default function CalendarView({
+  currentMonth,
+  entries,
+  moods,
+  meId,
+  onPrevMonth,
+  onNextMonth,
+  onSelectDate,
+  onSaved,
+  onMoodAdded,
+}: Props) {
   const start = currentMonth.startOf("month").startOf("week");
   const days = Array.from({ length: 42 }).map((_, idx) => start.add(idx, "day"));
   const today = dayjs().format("YYYY-MM-DD");
@@ -27,6 +39,19 @@ export default function CalendarView({ currentMonth, entries, moods, meId, onSel
   const [newMoodLabel, setNewMoodLabel] = useState("");
   const [newMoodEmoji, setNewMoodEmoji] = useState("");
   const [addingMood, setAddingMood] = useState(false);
+
+  useEffect(() => {
+    if (!openDate) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenDate(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [openDate]);
 
   const byDate = entries.reduce<Record<string, Entry[]>>((acc, e) => {
     if (!acc[e.date]) acc[e.date] = [];
@@ -52,7 +77,7 @@ export default function CalendarView({ currentMonth, entries, moods, meId, onSel
     setOpenDate((prev) => (prev === date ? null : date));
   };
 
-  const saveForDate = async (date: string) => {
+  const saveForDate = async (date: string, closeOnSuccess = false) => {
     if (!selectedMoodId) {
       setError("기분을 먼저 선택해 주세요.");
       return;
@@ -68,6 +93,9 @@ export default function CalendarView({ currentMonth, entries, moods, meId, onSel
       });
       setSuccess("저장됨");
       onSaved();
+      if (closeOnSuccess) {
+        setOpenDate(null);
+      }
     } catch (err: any) {
       const detail =
         err?.response?.data?.detail ??
@@ -115,16 +143,34 @@ export default function CalendarView({ currentMonth, entries, moods, meId, onSel
   };
 
   return (
-    <div className="rounded-soft bg-white p-4 shadow-soft md:p-6">
-      <div className="mb-3 text-sm font-semibold tracking-[0.2em] text-gray-500">
-        {currentMonth.format("YYYY년 M월")}
+    <div className="rounded-soft bg-white p-3 shadow-soft md:p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold tracking-[0.16em] text-gray-500">{currentMonth.format("YYYY년 M월")}</div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onPrevMonth}
+            className="rounded-md border border-gray-200 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-50"
+            aria-label="이전 달"
+          >
+            {"<"}
+          </button>
+          <button
+            type="button"
+            onClick={onNextMonth}
+            className="rounded-md border border-gray-200 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-50"
+            aria-label="다음 달"
+          >
+            {">"}
+          </button>
+        </div>
       </div>
-      <div className="grid grid-cols-7 gap-2 text-center text-xs text-gray-400">
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-gray-400">
         {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
           <div key={d}>{d}</div>
         ))}
       </div>
-      <div className="mt-2 grid grid-cols-7 gap-2">
+      <div className="mt-1.5 grid grid-cols-7 gap-1">
         {days.map((d) => {
           const key = d.format("YYYY-MM-DD");
           const list = byDate[key] ?? [];
@@ -135,26 +181,24 @@ export default function CalendarView({ currentMonth, entries, moods, meId, onSel
             <div key={key} className="relative">
               <button
                 onClick={() => openComposer(key)}
-                className={`min-h-20 w-full rounded-xl border p-2 text-left transition md:min-h-24 ${
+                className={`relative min-h-16 w-full rounded-xl border p-1.5 text-left transition md:min-h-20 ${
                   inMonth ? "border-gray-200" : "border-gray-100 bg-gray-50"
                 } ${isToday ? "ring-2 ring-rose-200 border-rose-300" : ""} hover:border-gray-400`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-500">{d.date()}</div>
-                  {isToday ? (
-                    <div className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-500">
-                      TODAY
-                    </div>
-                  ) : null}
-                </div>
-                <div className="mt-1 flex flex-wrap gap-1">
+                <div className="absolute left-1.5 top-1.5 text-[11px] text-gray-500">{d.date()}</div>
+                {isToday ? (
+                  <div className="absolute right-1.5 top-1.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-500">
+                    TODAY
+                  </div>
+                ) : null}
+                <div className="mt-5 flex flex-wrap gap-0.5 md:mt-6">
                   {list.slice(0, 3).map((entry) => (
-                    <span key={entry.id} className="text-base">
+                    <span key={entry.id} className="text-sm">
                       {entry.mood_emoji}
                     </span>
                   ))}
                 </div>
-                {list.length > 0 ? <div className="mt-1 text-[10px] text-gray-400">{list.length}명</div> : null}
+                {list.length > 0 ? <div className="mt-0.5 text-[10px] text-gray-400">{list.length}명</div> : null}
               </button>
 
               {isOpen ? (
@@ -212,6 +256,12 @@ export default function CalendarView({ currentMonth, entries, moods, meId, onSel
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey && !saving) {
+                        e.preventDefault();
+                        void saveForDate(key, true);
+                      }
+                    }}
                     maxLength={140}
                     placeholder="오늘의 한마디"
                     className="h-20 w-full rounded-lg border border-gray-200 p-2 text-xs outline-none focus:border-gray-400"

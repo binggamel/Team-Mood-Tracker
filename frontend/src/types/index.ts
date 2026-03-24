@@ -23,4 +23,15 @@ export type Entry = {
   mood_label: string;
   mood_color: string;
   comment: string;
+  like_count: number;
+  liked_by_me: boolean;
+};
+
+export type AttendanceRecord = {
+  id: number;
+  user: number;
+  user_name: string;
+  date: string;
+  check_in: string;
+  check_out: string;
 };

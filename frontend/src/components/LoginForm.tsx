@@ -30,7 +30,7 @@ export default function LoginForm({ onSuccess }: Props) {
 
   return (
     <div className="mx-auto mt-12 w-full max-w-md rounded-soft bg-white p-8 shadow-soft">
-      <h1 className="mb-2 text-center text-3xl tracking-wide text-ink">MOOD TRACKER</h1>
+      <h1 className="mb-2 text-center text-3xl tracking-wide text-ink">202-2호 설계실</h1>
       <p className="mb-8 text-center text-sm text-gray-500">팀 전용 로그인</p>
       <form className="space-y-4" onSubmit={submit}>
         <input

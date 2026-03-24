@@ -3,9 +3,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
-from .models import MoodEntry
-from .serializers import MoodEntrySerializer, EntryUpsertSerializer
+from .models import MoodEntry, AttendanceRecord
+from .serializers import MoodEntrySerializer, EntryUpsertSerializer, AttendanceRecordSerializer, AttendanceUpsertSerializer
 from .permissions import IsOwnerOrAdmin
 
 User = get_user_model()
@@ -18,7 +19,7 @@ class EntryRangeListView(ListAPIView):
     def get_queryset(self):
         start = self.request.query_params.get("start")
         end = self.request.query_params.get("end")
-        qs = MoodEntry.objects.select_related("user", "mood_type")
+        qs = MoodEntry.objects.select_related("user", "mood_type").prefetch_related("likes")
         if start and end:
             qs = qs.filter(date__range=[start, end])
         return qs
@@ -45,15 +46,36 @@ class EntryUpsertView(APIView):
 class EntryDetailView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
     serializer_class = MoodEntrySerializer
-    queryset = MoodEntry.objects.select_related("user", "mood_type")
+    queryset = MoodEntry.objects.select_related("user", "mood_type").prefetch_related("likes")
 
 
 class EntryByDateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, date: str):
-        entries = MoodEntry.objects.select_related("user", "mood_type").filter(date=date)
+        entries = MoodEntry.objects.select_related("user", "mood_type").prefetch_related("likes").filter(date=date)
         return Response(MoodEntrySerializer(entries, many=True).data)
+
+
+class EntryLikeToggleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        entry = get_object_or_404(MoodEntry, pk=pk)
+        if entry.likes.filter(pk=request.user.pk).exists():
+            entry.likes.remove(request.user)
+            liked_by_me = False
+        else:
+            entry.likes.add(request.user)
+            liked_by_me = True
+        return Response(
+            {
+                "entry_id": entry.id,
+                "like_count": entry.likes.count(),
+                "liked_by_me": liked_by_me,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class MatrixView(APIView):
@@ -86,3 +108,28 @@ class MatrixView(APIView):
             }
 
         return Response({"start": start, "end": end, "rows": list(matrix.values())})
+
+
+class AttendanceByDateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, date: str):
+        records = AttendanceRecord.objects.select_related("user").filter(date=date, user__role="member", user__is_active=True)
+        return Response(AttendanceRecordSerializer(records, many=True).data)
+
+
+class AttendanceUpsertView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AttendanceUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        record, _ = AttendanceRecord.objects.update_or_create(
+            user=request.user,
+            date=serializer.validated_data["date"],
+            defaults={
+                "check_in": serializer.validated_data["check_in"],
+                "check_out": serializer.validated_data["check_out"],
+            },
+        )
+        return Response(AttendanceRecordSerializer(record).data, status=status.HTTP_200_OK)
