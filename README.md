@@ -1,3 +1,13 @@
+
+<img width="1279" height="919" alt="스크린샷 2026-03-24 오후 6 25 40" src="https://github.com/user-attachments/assets/56020cf9-ceeb-451c-ad53-967d00461fde" />
+<img width="1271" height="764" alt="스크린샷 2026-03-24 오후 6 25 28" src="https://github.com/user-attachments/assets/93919cc7-528f-4d45-b591-485057aa72a8" />
+<img width="1279" height="919" alt="스크린샷 2026-03-24 오후 6 25 40" src="https://github.com/user-attachments/assets/0c252ec3-4b8e-4d27-9919-afa7e43cc7c1" />
+
+
+
+----
+
+
 # Team Mood Tracker
 
 팀 전용 무드트래커 웹앱입니다.
